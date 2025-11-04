@@ -1,28 +1,38 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import {View,Text,FlatList,StyleSheet,TouchableOpacity,RefreshControl} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTasks } from './context/TaskContext';
 import TaskItem from '../components/TaskItem';
 
 export default function IndexScreen() {
-  const { tasks, toggleTask, deleteTask } = useTasks();
+  const { tasks, toggleTask, deleteTask, refreshFromApi } = useTasks();
   const router = useRouter();
   const [refreshing, setRefreshing] = React.useState(false);
 
-  // 🔹 Optional: Disable refresh (since we no longer fetch API)
   const onRefresh = async () => {
-    setRefreshing(true);
-    // no API fetch anymore, just simulate refresh delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  setRefreshing(true);
+  try {
+    
+    await Promise.race([
+      refreshFromApi(),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
+  } catch (error) {
+    console.log('Error refreshing:', error);
+  } finally {
     setRefreshing(false);
-  };
+  }
+};
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks</Text>
-        <TouchableOpacity onPress={() => router.push('/add-task')} style={styles.addBtn}>
+        <TouchableOpacity
+          onPress={() => router.push('/add-task')}
+          style={styles.addBtn}
+        >
           <Text style={styles.addText}>+ Add</Text>
         </TouchableOpacity>
       </View>

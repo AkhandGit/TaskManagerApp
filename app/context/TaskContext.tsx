@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 
 export type Task = {
   id: number;
@@ -12,7 +13,7 @@ type TaskContextType = {
   addTask: (title: string) => void;
   toggleTask: (id: number) => void;
   deleteTask: (id: number) => void;
-  clearAll: () => void;
+  refreshFromApi: () => Promise<void>;
 };
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -27,51 +28,74 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tasks, setTasks] = useState<Task[]>([]);
   const STORAGE_KEY = '@taskmanager_tasks';
 
-  //Load tasks on startup
+  //Load tasks from storage or API
   useEffect(() => {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
           setTasks(JSON.parse(stored));
+        } else {
+          await refreshFromApi();
         }
       } catch (err) {
         console.log('Error loading tasks:', err);
+        await refreshFromApi();
       }
     })();
   }, []);
 
-  //Save whenever tasks change
+  //Save tasks to storage whenever they change
   useEffect(() => {
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)).catch(err =>
-      console.log('Error saving tasks:', err)
-    );
+    if (tasks.length > 0) {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)).catch((err) =>
+        console.log('Error saving tasks', err)
+      );
+    }
   }, [tasks]);
+
+  //Fetch tasks from Fake API
+  const refreshFromApi = async () => {
+    try {
+      const res = await fetch('https://jsonplaceholder.typicode.com/todos?_limit=10');
+      const data = await res.json();
+      const mapped: Task[] = data.map((d: any) => ({
+        id: d.id,
+        title: String(d.title),
+        completed: Boolean(d.completed),
+      }));
+      setTasks(mapped);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
+    } catch (err) {
+      Alert.alert('Error', 'Failed to fetch tasks from API');
+    }
+  };
 
   const addTask = (title: string) => {
     if (!title.trim()) return;
     const id = Date.now();
     const newTask: Task = { id, title, completed: false };
-    setTasks(prev => [newTask, ...prev]);
+    const updated = [newTask, ...tasks];
+    setTasks(updated);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
   const toggleTask = (id: number) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
+    const updated = tasks.map(t =>
+      t.id === id ? { ...t, completed: !t.completed } : t
     );
+    setTasks(updated);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
   const deleteTask = (id: number) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  };
-
-  const clearAll = () => {
-    setTasks([]);
-    AsyncStorage.removeItem(STORAGE_KEY);
+    const updated = tasks.filter(t => t.id !== id);
+    setTasks(updated);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
   return (
-    <TaskContext.Provider value={{ tasks, addTask, toggleTask, deleteTask, clearAll }}>
+    <TaskContext.Provider value={{ tasks, addTask, toggleTask, deleteTask, refreshFromApi }}>
       {children}
     </TaskContext.Provider>
   );
