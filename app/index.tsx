@@ -1,74 +1,115 @@
-import React from 'react';
-import {View,Text,FlatList,StyleSheet,TouchableOpacity,RefreshControl} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTasks } from './context/TaskContext';
-import TaskItem from '../components/TaskItem';
+import React from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useTasks } from "./context/TaskContext";
+import { useTheme } from "./context/ThemeContext";
+import TaskItem from "../components/TaskItem";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function IndexScreen() {
+export default function TaskListScreen() {
   const { tasks, toggleTask, deleteTask, refreshFromApi } = useTasks();
+  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
-  const [refreshing, setRefreshing] = React.useState(false);
 
-  const onRefresh = async () => {
-  setRefreshing(true);
-  try {
-    
-    await Promise.race([
-      refreshFromApi(),
-      new Promise((resolve) => setTimeout(resolve, 2000)),
-    ]);
-  } catch (error) {
-    console.log('Error refreshing:', error);
-  } finally {
-    setRefreshing(false);
-  }
-};
+  // ✅ Type-safe boolean flag
+  const isDark: boolean = theme === "dark";
+
+  const colors = {
+    background: isDark ? "#202124" : "#f4f6fa",
+    header: isDark ? "#18191b" : "#e8ecf3",
+    text: isDark ? "#f1f1f1" : "#1b1b1b",
+    button: isDark ? "#5b8efc" : "#2b7cff",
+  };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.header }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tasks</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/add-task')}
-          style={styles.addBtn}
-        >
-          <Text style={styles.addText}>+ Add</Text>
-        </TouchableOpacity>
+      <View style={[styles.header, { backgroundColor: colors.header }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Task Manager
+        </Text>
+
+        <View style={styles.headerIcons}>
+          {/* Theme toggle */}
+          <TouchableOpacity onPress={toggleTheme} style={styles.iconBtn}>
+            <Ionicons
+              name={isDark ? "sunny-outline" : "moon-outline"}
+              size={22}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+
+          {/* Add Task */}
+          <TouchableOpacity
+            onPress={() => router.push("/add-task")}
+            style={[styles.iconBtn, { backgroundColor: colors.button }]}
+          >
+            <Ionicons name="add" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Task List */}
-      <FlatList
-        data={tasks}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <TaskItem task={item} onToggle={toggleTask} onDelete={deleteTask} />
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={<Text style={styles.empty}>No tasks yet</Text>}
-      />
-    </View>
+      {/* Body */}
+      <View style={[styles.body, { backgroundColor: colors.background }]}>
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TaskItem
+              task={item}
+              onToggle={() => toggleTask(item.id)}
+              onDelete={() => deleteTask(item.id)}
+              isDark={isDark}
+            />
+          )}
+          onRefresh={refreshFromApi}
+          refreshing={false}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 8, backgroundColor: '#f4f6fa' },
-  header: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  safeArea: {
+    flex: 1,
   },
-  headerTitle: { fontSize: 24, fontWeight: '600', color: '#1b1b1b' },
-  addBtn: {
-    backgroundColor: '#2b7cff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  headerIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  iconBtn: {
+    padding: 8,
     borderRadius: 8,
   },
-  addText: { color: 'white', fontWeight: '600' },
-  empty: { textAlign: 'center', marginTop: 24, color: '#666' },
+  body: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
 });

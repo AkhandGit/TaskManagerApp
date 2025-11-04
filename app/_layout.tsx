@@ -1,18 +1,22 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { TaskProvider } from './context/TaskContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { ThemeProvider } from "./context/ThemeContext";
+import { TaskProvider } from "./context/TaskContext";
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <TaskProvider>
-        <Stack>
-          <Stack.Screen name="index" options={{ title: "Tasks" }} />
-          <Stack.Screen name="add-task" options={{ title: "Add Task" }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </TaskProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <TaskProvider>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="add-task" options={{ headerShown: false  }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </TaskProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
