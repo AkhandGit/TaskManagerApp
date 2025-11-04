@@ -14,15 +14,17 @@ export default function AddTaskScreen() {
       return;
     }
     addTask(title.trim());
-    setTitle('');
-    router.back(); // go back to list
+    setTitle("");
+    setTimeout(() => {
+    router.back();
+    }, 100); 
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Task title</Text>
       <TextInput
-        placeholder="Buy groceries, read book..."
+        placeholder="Add your task to do..."
         style={styles.input}
         value={title}
         onChangeText={setTitle}

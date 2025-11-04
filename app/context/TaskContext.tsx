@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Task = {
@@ -13,7 +12,7 @@ type TaskContextType = {
   addTask: (title: string) => void;
   toggleTask: (id: number) => void;
   deleteTask: (id: number) => void;
-  refreshFromApi: () => Promise<void>;
+  clearAll: () => void;
 };
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -28,58 +27,51 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tasks, setTasks] = useState<Task[]>([]);
   const STORAGE_KEY = '@taskmanager_tasks';
 
-  // To Save tasks to storage whenever they change
-  useEffect(() => {
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)).catch((err) =>
-      console.log('Error saving tasks', err)
-    );
-  }, [tasks]);
-
-  // To Load tasks from storage on every startup
+  //Load tasks on startup
   useEffect(() => {
     (async () => {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setTasks(JSON.parse(stored));
-      } else {
-        await refreshFromApi(); // initial fetch if no local data
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setTasks(JSON.parse(stored));
+        }
+      } catch (err) {
+        console.log('Error loading tasks:', err);
       }
     })();
   }, []);
 
-  
-  const refreshFromApi = async () => {
-    try {
-      const res = await fetch('https://jsonplaceholder.typicode.com/todos?_limit=10');
-      const data: any[] = await res.json();
-      const mapped: Task[] = data.map((d) => ({
-        id: d.id,
-        title: String(d.title),
-        completed: Boolean(d.completed),
-      }));
-      setTasks(mapped);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to fetch tasks from API');
-    }
-  };
+  //Save whenever tasks change
+  useEffect(() => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)).catch(err =>
+      console.log('Error saving tasks:', err)
+    );
+  }, [tasks]);
 
   const addTask = (title: string) => {
     if (!title.trim()) return;
-    const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+    const id = Date.now();
     const newTask: Task = { id, title, completed: false };
     setTasks(prev => [newTask, ...prev]);
   };
 
   const toggleTask = (id: number) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    setTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
   };
 
   const deleteTask = (id: number) => {
     setTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  const clearAll = () => {
+    setTasks([]);
+    AsyncStorage.removeItem(STORAGE_KEY);
+  };
+
   return (
-    <TaskContext.Provider value={{ tasks, addTask, toggleTask, deleteTask, refreshFromApi }}>
+    <TaskContext.Provider value={{ tasks, addTask, toggleTask, deleteTask, clearAll }}>
       {children}
     </TaskContext.Provider>
   );
