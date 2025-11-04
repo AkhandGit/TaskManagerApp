@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type Task = {
   id: number;
@@ -25,8 +26,28 @@ export const useTasks = () => {
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const STORAGE_KEY = '@taskmanager_tasks';
 
-  // Fetch initial tasks from JSONPlaceholder (first 10)
+  // To Save tasks to storage whenever they change
+  useEffect(() => {
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)).catch((err) =>
+      console.log('Error saving tasks', err)
+    );
+  }, [tasks]);
+
+  // To Load tasks from storage on every startup
+  useEffect(() => {
+    (async () => {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setTasks(JSON.parse(stored));
+      } else {
+        await refreshFromApi(); // initial fetch if no local data
+      }
+    })();
+  }, []);
+
+  
   const refreshFromApi = async () => {
     try {
       const res = await fetch('https://jsonplaceholder.typicode.com/todos?_limit=10');
@@ -42,13 +63,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  useEffect(() => {
-    refreshFromApi();
-  }, []);
-
   const addTask = (title: string) => {
     if (!title.trim()) return;
-    // create a fake id (max id + 1)
     const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
     const newTask: Task = { id, title, completed: false };
     setTasks(prev => [newTask, ...prev]);
